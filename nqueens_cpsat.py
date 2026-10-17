@@ -1,3 +1,10 @@
+# ============================================================
+# N-QUEENS USING CP-SAT
+# Benchmark: N = 2, 3, 4, 8, 20, 50, 100
+# 5 runs / N, time limit 30s, 1 worker
+# Kết quả benchmark được tổng hợp bằng median.
+# ============================================================
+
 from ortools.sat.python import cp_model
 
 import time
@@ -5,25 +12,14 @@ import csv
 from statistics import median
 
 
-# =========================================================
-# 1. TẠO MODEL N-QUEENS CHO CP-SAT
-# =========================================================
+# ============================================================
+# Tạo mô hình N-Queens
+# queens[row] biểu diễn cột đặt hậu ở hàng row.
+# ============================================================
 
 def build_nqueens_model(n):
 
     model = cp_model.CpModel()
-
-    # -----------------------------------------------------
-    # queens[row] = cột đặt quân hậu ở hàng row
-    #
-    # Ví dụ:
-    # queens = [1, 3, 0, 2]
-    #
-    # Hàng 0 -> cột 1
-    # Hàng 1 -> cột 3
-    # Hàng 2 -> cột 0
-    # Hàng 3 -> cột 2
-    # -----------------------------------------------------
 
     queens = [
         model.NewIntVar(
@@ -35,22 +31,11 @@ def build_nqueens_model(n):
     ]
 
 
-    # =====================================================
-    # RÀNG BUỘC 1:
-    # Không có 2 quân hậu cùng cột
-    # =====================================================
-
+    # Các hậu phải nằm ở các cột khác nhau
     model.AddAllDifferent(queens)
 
 
-    # =====================================================
-    # RÀNG BUỘC 2:
-    # Không có 2 quân hậu cùng đường chéo "\"
-    #
-    # Các hậu cùng đường chéo "\" có:
-    # column - row giống nhau
-    # =====================================================
-
+    # Đường chéo "\": column - row phải khác nhau
     diagonal_1 = []
 
     for row in range(n):
@@ -67,20 +52,12 @@ def build_nqueens_model(n):
 
         diagonal_1.append(d)
 
-
     model.AddAllDifferent(
         diagonal_1
     )
 
 
-    # =====================================================
-    # RÀNG BUỘC 3:
-    # Không có 2 quân hậu cùng đường chéo "/"
-    #
-    # Các hậu cùng đường chéo "/" có:
-    # column + row giống nhau
-    # =====================================================
-
+    # Đường chéo "/": column + row phải khác nhau
     diagonal_2 = []
 
     for row in range(n):
@@ -97,7 +74,6 @@ def build_nqueens_model(n):
 
         diagonal_2.append(d)
 
-
     model.AddAllDifferent(
         diagonal_2
     )
@@ -106,45 +82,25 @@ def build_nqueens_model(n):
     return model, queens
 
 
-# =========================================================
-# 2. GIẢI N-QUEENS VÀ IN NGHIỆM
-#
-# Hàm này chỉ dùng khi muốn kiểm tra trực quan.
-# Không dùng cho benchmark chính thức.
-# =========================================================
+# ============================================================
+# Giải một bài toán N-Queens
+# Hàm dùng để kiểm tra nghiệm trực tiếp, không dùng cho benchmark.
+# ============================================================
 
 def solve_nqueens_cpsat(
     n,
-    timeout_seconds=10
+    timeout_seconds=30
 ):
 
     model, queens = build_nqueens_model(n)
 
-
     solver = cp_model.CpSolver()
-
-
-    # -----------------------------------------------------
-    # Giới hạn thời gian
-    # -----------------------------------------------------
 
     solver.parameters.max_time_in_seconds = (
         timeout_seconds
     )
 
-
-    # -----------------------------------------------------
-    # Chỉ sử dụng 1 worker
-    #
-    # Giúp benchmark với SAT công bằng hơn
-    # -----------------------------------------------------
-
     solver.parameters.num_search_workers = 1
-
-
-    # -----------------------------------------------------
-    # Cố định seed để kết quả ổn định hơn
-    # -----------------------------------------------------
 
     solver.parameters.random_seed = 0
 
@@ -155,13 +111,8 @@ def solve_nqueens_cpsat(
 
     end = time.perf_counter()
 
-
     solve_time = end - start
 
-
-    # =====================================================
-    # KẾT QUẢ
-    # =====================================================
 
     if status in (
         cp_model.OPTIMAL,
@@ -201,27 +152,22 @@ def solve_nqueens_cpsat(
     )
 
 
-# =========================================================
-# 3. BENCHMARK CP-SAT MỘT LẦN
-# =========================================================
+# ============================================================
+# Benchmark CP-SAT một lần
+# Đo thời gian tạo mô hình và thời gian giải.
+# ============================================================
 
 def benchmark_cpsat_once(
     n,
-    timeout_seconds=10
+    timeout_seconds=30
 ):
 
-    # =====================================================
-    # MODEL TIME
-    # =====================================================
-
+    # Model time
     model_start = time.perf_counter()
-
 
     model, queens = build_nqueens_model(n)
 
-
     model_end = time.perf_counter()
-
 
     model_time = (
         model_end
@@ -229,38 +175,23 @@ def benchmark_cpsat_once(
     )
 
 
-    # =====================================================
-    # TẠO SOLVER
-    # =====================================================
-
     solver = cp_model.CpSolver()
-
 
     solver.parameters.max_time_in_seconds = (
         timeout_seconds
     )
 
-
-    # Dùng 1 CPU worker để benchmark công bằng hơn
     solver.parameters.num_search_workers = 1
 
-
-    # Cố định seed
     solver.parameters.random_seed = 0
 
 
-    # =====================================================
-    # SOLVE TIME
-    # =====================================================
-
+    # Solve time
     solve_start = time.perf_counter()
-
 
     status = solver.Solve(model)
 
-
     solve_end = time.perf_counter()
-
 
     solve_time = (
         solve_end
@@ -274,10 +205,7 @@ def benchmark_cpsat_once(
     )
 
 
-    # =====================================================
-    # XÁC ĐỊNH TRẠNG THÁI
-    # =====================================================
-
+    # Trạng thái kết quả
     if status in (
         cp_model.OPTIMAL,
         cp_model.FEASIBLE
@@ -315,14 +243,14 @@ def benchmark_cpsat_once(
     }
 
 
-# =========================================================
-# 4. CHẠY MỘT N NHIỀU LẦN VÀ LẤY MEDIAN
-# =========================================================
+# ============================================================
+# Chạy một N nhiều lần và lấy median
+# ============================================================
 
 def benchmark_cpsat_repeated(
     n,
     repeats=5,
-    timeout_seconds=10
+    timeout_seconds=30
 ):
 
     runs = []
@@ -349,7 +277,6 @@ def benchmark_cpsat_repeated(
         )
 
 
-        # Ghi thêm số thứ tự lần chạy
         result["Run"] = run_id
 
 
@@ -358,10 +285,7 @@ def benchmark_cpsat_repeated(
         )
 
 
-    # =====================================================
-    # CHỈ LẤY CÁC LẦN HOÀN THÀNH
-    # =====================================================
-
+    # Chỉ lấy các lần chạy hoàn thành
     completed_runs = [
 
         result
@@ -373,10 +297,7 @@ def benchmark_cpsat_repeated(
     ]
 
 
-    # =====================================================
-    # NẾU CẢ 5 LẦN ĐỀU TIMEOUT
-    # =====================================================
-
+    # Trường hợp không có lần chạy nào hoàn thành
     if len(completed_runs) == 0:
 
         summary = {
@@ -405,10 +326,7 @@ def benchmark_cpsat_repeated(
         return summary, runs
 
 
-    # =====================================================
-    # TRẠNG THÁI
-    # =====================================================
-
+    # Xác định trạng thái tổng hợp
     base_status = (
         completed_runs[0]["Status"]
     )
@@ -427,10 +345,7 @@ def benchmark_cpsat_repeated(
         )
 
 
-    # =====================================================
-    # MEDIAN
-    # =====================================================
-
+    # Median của các lần chạy hoàn thành
     summary = {
 
         "N": n,
@@ -467,9 +382,9 @@ def benchmark_cpsat_repeated(
     return summary, runs
 
 
-# =========================================================
-# 5. IN BẢNG MEDIAN
-# =========================================================
+# ============================================================
+# In bảng kết quả median
+# ============================================================
 
 def print_benchmark_results(
     results
@@ -520,9 +435,9 @@ def print_benchmark_results(
     print("=" * 80)
 
 
-# =========================================================
-# 6. LƯU KẾT QUẢ MEDIAN
-# =========================================================
+# ============================================================
+# Lưu kết quả median
+# ============================================================
 
 def save_median_results(
     results
@@ -574,9 +489,9 @@ def save_median_results(
     )
 
 
-# =========================================================
-# 7. LƯU TẤT CẢ CÁC LẦN CHẠY
-# =========================================================
+# ============================================================
+# Lưu toàn bộ các lần chạy
+# ============================================================
 
 def save_raw_results(
     results
@@ -630,13 +545,12 @@ def save_raw_results(
     )
 
 
-# =========================================================
-# 8. MAIN
-# =========================================================
+# ============================================================
+# Main
+# ============================================================
 
 if __name__ == "__main__":
 
-    # Các kích thước cần test
     test_values = [
 
         2,
@@ -649,26 +563,17 @@ if __name__ == "__main__":
     ]
 
 
-    # Mỗi N chạy 5 lần
     repeats = 5
 
-
-    # Mỗi lần tối đa 30 giây
     timeout_seconds = 30
 
 
-    # Kết quả median
     median_results = []
 
-
-    # Kết quả toàn bộ từng lần chạy
     raw_results = []
 
 
-    # =====================================================
-    # CHẠY BENCHMARK
-    # =====================================================
-
+    # Chạy benchmark
     for n in test_values:
 
         summary, runs = (
@@ -693,19 +598,13 @@ if __name__ == "__main__":
         )
 
 
-    # =====================================================
-    # IN BẢNG MEDIAN
-    # =====================================================
-
+    # In kết quả
     print_benchmark_results(
         median_results
     )
 
 
-    # =====================================================
-    # LƯU CSV
-    # =====================================================
-
+    # Lưu CSV
     save_median_results(
         median_results
     )
