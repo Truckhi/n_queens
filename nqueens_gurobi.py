@@ -1,18 +1,9 @@
 # ============================================================
 # N-QUEENS USING GUROBI MIP
-#
-# Benchmark:
-#   N = 2, 3, 4, 8, 20, 50, 100
-#   5 runs / N
-#   Time limit = 30 seconds
-#   Threads = 1
-#   Median of 5 runs
-#
-# Output:
-#   benchmark_gurobi_median.csv
-#   benchmark_gurobi_runs.csv
+# Benchmark: N = 2, 3, 4, 8, 20, 50, 100
+# 5 runs / N, time limit 30s, 1 thread
+# Kết quả benchmark được tổng hợp bằng median.
 # ============================================================
-
 
 import csv
 import time
@@ -23,7 +14,7 @@ from gurobipy import GRB
 
 
 # ============================================================
-# CONFIG
+# Cấu hình benchmark
 # ============================================================
 
 N_VALUES = [
@@ -44,7 +35,8 @@ THREADS = 1
 
 
 # ============================================================
-# VALIDATE SOLUTION
+# Kiểm tra nghiệm
+# Đảm bảo không có hai hậu cùng hàng, cột hoặc đường chéo.
 # ============================================================
 
 def validate_solution(positions, n):
@@ -80,7 +72,7 @@ def validate_solution(positions, n):
 
 
 # ============================================================
-# SOLVE ONE N-QUEENS INSTANCE
+# Giải một bài toán N-Queens bằng Gurobi MIP
 # ============================================================
 
 def solve_nqueens_gurobi(n):
@@ -89,36 +81,24 @@ def solve_nqueens_gurobi(n):
 
     try:
 
-        # ====================================================
-        # 1. MODEL BUILD TIME
-        # ====================================================
-
+        # Thời gian xây dựng mô hình
         model_start = time.perf_counter()
 
         model = gp.Model(
             f"NQueens_{n}"
         )
 
-        # Tắt log solver
         model.Params.OutputFlag = 0
 
-        # Công bằng với solver khác
         model.Params.Threads = THREADS
 
-        # Timeout
         model.Params.TimeLimit = TIME_LIMIT
 
-        # Cố định seed
         model.Params.Seed = 0
 
 
-        # ====================================================
-        # BINARY VARIABLES
-        #
-        # x[row, col] = 1
-        # <=> có hậu tại vị trí (row, col)
-        # ====================================================
-
+        # Biến nhị phân
+        # x[row, col] = 1 nếu đặt hậu tại vị trí (row, col).
         x = model.addVars(
             n,
             n,
@@ -127,11 +107,7 @@ def solve_nqueens_gurobi(n):
         )
 
 
-        # ====================================================
-        # CONSTRAINT 1:
-        # Mỗi hàng chính xác 1 hậu
-        # ====================================================
-
+        # Mỗi hàng có chính xác một hậu
         for row in range(n):
 
             model.addConstr(
@@ -143,11 +119,7 @@ def solve_nqueens_gurobi(n):
             )
 
 
-        # ====================================================
-        # CONSTRAINT 2:
-        # Mỗi cột chính xác 1 hậu
-        # ====================================================
-
+        # Mỗi cột có chính xác một hậu
         for col in range(n):
 
             model.addConstr(
@@ -159,15 +131,7 @@ def solve_nqueens_gurobi(n):
             )
 
 
-        # ====================================================
-        # CONSTRAINT 3:
-        # Đường chéo "\"
-        #
-        # row - col = constant
-        #
-        # At Most One
-        # ====================================================
-
+        # Đường chéo "\": row - col không đổi
         for d in range(
             -(n - 1),
             n
@@ -190,15 +154,7 @@ def solve_nqueens_gurobi(n):
                 )
 
 
-        # ====================================================
-        # CONSTRAINT 4:
-        # Đường chéo "/"
-        #
-        # row + col = constant
-        #
-        # At Most One
-        # ====================================================
-
+        # Đường chéo "/": row + col không đổi
         for s in range(
             2 * n - 1
         ):
@@ -220,8 +176,7 @@ def solve_nqueens_gurobi(n):
                 )
 
 
-        # Đây là bài toán feasibility
-        # nên objective = 0
+        # Bài toán feasibility nên không cần tối ưu hàm mục tiêu
         model.setObjective(
             0.0,
             GRB.MINIMIZE
@@ -240,10 +195,7 @@ def solve_nqueens_gurobi(n):
         )
 
 
-        # ====================================================
-        # 2. SOLVE
-        # ====================================================
-
+        # Thời gian giải
         solve_start = (
             time.perf_counter()
         )
@@ -260,10 +212,7 @@ def solve_nqueens_gurobi(n):
         )
 
 
-        # ====================================================
-        # 3. STATUS
-        # ====================================================
-
+        # Xác định trạng thái nghiệm
         status_code = model.Status
 
         status = "UNKNOWN"
@@ -278,8 +227,6 @@ def solve_nqueens_gurobi(n):
 
         elif model.SolCount > 0:
 
-            # Chỉ cần có một nghiệm khả thi
-            # là đủ chứng minh SAT
             status = "SAT"
 
             positions = []
@@ -310,8 +257,6 @@ def solve_nqueens_gurobi(n):
 
         elif status_code == GRB.OPTIMAL:
 
-            # Trường hợp bình thường sẽ
-            # đã được bắt ở SolCount > 0
             status = "SAT"
 
 
@@ -321,10 +266,6 @@ def solve_nqueens_gurobi(n):
                 f"STATUS_{status_code}"
             )
 
-
-        # ====================================================
-        # TOTAL TIME
-        # ====================================================
 
         total_time = (
             model_time
@@ -370,6 +311,7 @@ def solve_nqueens_gurobi(n):
 
             try:
                 model.dispose()
+
             except Exception:
                 pass
 
@@ -409,6 +351,7 @@ def solve_nqueens_gurobi(n):
 
             try:
                 model.dispose()
+
             except Exception:
                 pass
 
@@ -443,7 +386,7 @@ def solve_nqueens_gurobi(n):
 
 
 # ============================================================
-# SAFE MEDIAN
+# Tính median, bỏ qua giá trị None
 # ============================================================
 
 def safe_median(values):
@@ -463,7 +406,8 @@ def safe_median(values):
 
 
 # ============================================================
-# BENCHMARK
+# Benchmark
+# Chạy mỗi N RUNS lần và lấy median.
 # ============================================================
 
 def benchmark_gurobi():
@@ -501,10 +445,6 @@ def benchmark_gurobi():
 
     print()
 
-
-    # ========================================================
-    # RUN ALL N
-    # ========================================================
 
     for n in N_VALUES:
 
@@ -584,10 +524,7 @@ def benchmark_gurobi():
                     )
 
 
-        # ====================================================
-        # MEDIAN
-        # ====================================================
-
+        # Lấy các lần chạy thành công
         successful_runs = [
             result
             for result in run_results
@@ -754,7 +691,7 @@ def benchmark_gurobi():
 
 
     # ========================================================
-    # SAVE RAW RUNS
+    # Lưu kết quả từng lần chạy
     # ========================================================
 
     raw_file = (
@@ -795,7 +732,7 @@ def benchmark_gurobi():
 
 
     # ========================================================
-    # SAVE MEDIAN
+    # Lưu kết quả median
     # ========================================================
 
     median_file = (
@@ -832,7 +769,7 @@ def benchmark_gurobi():
 
 
     # ========================================================
-    # PRINT FINAL TABLE
+    # In bảng kết quả
     # ========================================================
 
     print()
@@ -933,7 +870,7 @@ def benchmark_gurobi():
 
 
 # ============================================================
-# MAIN
+# Main
 # ============================================================
 
 if __name__ == "__main__":
