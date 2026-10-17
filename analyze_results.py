@@ -29,6 +29,7 @@
 #   benchmark_all_methods.csv
 #   total_time_comparison.csv
 #   status_comparison.csv
+#   exact_methods_time_breakdown.csv
 #
 #   charts/
 #       01_total_runtime_all_methods.png
@@ -89,7 +90,6 @@ EXACT_METHODS = [
 
 
 METHOD_ORDER = [
-
     "SAT - Pairwise",
     "SAT - Sequential",
     "SAT - Binary",
@@ -295,8 +295,7 @@ def load_sat():
 
 
     # ========================================================
-    # Quan trọng:
-    # tạo DataFrame với cùng index file gốc
+    # Tạo DataFrame với cùng index file gốc
     # ========================================================
 
     result = pd.DataFrame(
@@ -447,18 +446,6 @@ def load_exact_method(
             f"{path.name} khong co cot N"
         )
 
-
-    # ========================================================
-    # FIX QUAN TRỌNG
-    #
-    # Không dùng:
-    #
-    # result = pd.DataFrame()
-    #
-    # rồi gán Method = scalar.
-    #
-    # Phải tạo index theo df trước.
-    # ========================================================
 
     result = pd.DataFrame(
         index=df.index
@@ -853,7 +840,117 @@ status_table.to_csv(
 
 
 # ============================================================
-# 11. PLOT HELPER
+# 11. EXACT METHODS TIME BREAKDOWN
+#
+# Xuất riêng Model / Solve / Total time cho:
+#   CP-SAT
+#   CPLEX CP
+#   CPLEX MIP
+#   Gurobi MIP
+#
+# Phần này chỉ tạo thêm CSV.
+# Không thay đổi dữ liệu dùng để vẽ chart.
+# ============================================================
+
+exact_methods_breakdown = (
+
+    all_results[
+
+        all_results[
+            "Method"
+        ].isin(
+            EXACT_METHODS
+        )
+
+    ][
+        [
+            "Method",
+            "N",
+            "Build_Time",
+            "Solve_Time",
+            "Total_Time",
+            "Status",
+        ]
+    ]
+    .copy()
+)
+
+
+# Trong các solver CP/MIP,
+# Build_Time chính là thời gian tạo model.
+exact_methods_breakdown = (
+
+    exact_methods_breakdown
+    .rename(
+        columns={
+            "Build_Time":
+                "Model_Time",
+        }
+    )
+)
+
+
+# Giữ thứ tự:
+# CP-SAT -> CPLEX CP -> CPLEX MIP -> Gurobi MIP
+exact_method_rank = {
+
+    method:
+        index
+
+    for index, method
+    in enumerate(
+        EXACT_METHODS
+    )
+}
+
+
+exact_methods_breakdown[
+    "_method_rank"
+] = (
+
+    exact_methods_breakdown[
+        "Method"
+    ].map(
+        exact_method_rank
+    )
+)
+
+
+exact_methods_breakdown = (
+
+    exact_methods_breakdown
+    .sort_values(
+        [
+            "_method_rank",
+            "N",
+        ]
+    )
+    .drop(
+        columns=[
+            "_method_rank",
+        ]
+    )
+    .reset_index(
+        drop=True
+    )
+)
+
+
+exact_methods_breakdown_file = (
+    BASE_DIR
+    / "exact_methods_time_breakdown.csv"
+)
+
+
+exact_methods_breakdown.to_csv(
+    exact_methods_breakdown_file,
+    index=False,
+    encoding="utf-8-sig"
+)
+
+
+# ============================================================
+# 12. PLOT HELPER
 # ============================================================
 
 def plot_method_lines(
@@ -1185,7 +1282,7 @@ def plot_method_lines(
 
 
 # ============================================================
-# 12. CHART 1
+# 13. CHART 1
 #
 # TOTAL RUNTIME:
 # TẤT CẢ PHƯƠNG PHÁP
@@ -1224,7 +1321,7 @@ plot_method_lines(
 
 
 # ============================================================
-# 13. CHART 2
+# 14. CHART 2
 #
 # SAT ENCODING TOTAL RUNTIME
 # ============================================================
@@ -1267,7 +1364,7 @@ plot_method_lines(
 
 
 # ============================================================
-# 14. CHART 3
+# 15. CHART 3
 #
 # EXACT METHODS:
 #
@@ -1306,7 +1403,7 @@ plot_method_lines(
 
 
 # ============================================================
-# 15. CHART 4
+# 16. CHART 4
 #
 # SAT CLAUSE COUNT
 #
@@ -1343,7 +1440,7 @@ plot_method_lines(
 
 
 # ============================================================
-# 16. CHART 5
+# 17. CHART 5
 #
 # SAT VARIABLE COUNT
 #
@@ -1379,7 +1476,7 @@ plot_method_lines(
 
 
 # ============================================================
-# 17. CHART 6
+# 18. CHART 6
 #
 # SAT SOLVE TIME ONLY
 #
@@ -1421,7 +1518,7 @@ plot_method_lines(
 
 
 # ============================================================
-# 18. PRINT FINAL SUMMARY
+# 19. PRINT FINAL SUMMARY
 # ============================================================
 
 print()
@@ -1531,6 +1628,12 @@ print(
 print(
     "Status table:",
     status_file.name
+)
+
+
+print(
+    "Exact-method breakdown:",
+    exact_methods_breakdown_file.name
 )
 
 
