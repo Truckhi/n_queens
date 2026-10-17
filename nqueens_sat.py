@@ -1,26 +1,10 @@
 # ============================================================
 # N-QUEENS USING SAT
-# Compare 5 AMO encodings:
-#
-#   1. Pairwise
-#   2. Sequential Counter
-#   3. Binary
-#   4. Commander
-#   5. Product
-#
-# SAT Solver: Glucose3 (PySAT)
-#
-# Benchmark:
-#   N = 2, 3, 4, 8, 20, 50, 100
-#   5 runs / configuration
-#   Hard timeout = 10 seconds / run
-#   Report median time
-#
-# Output:
-#   benchmark_results_median.csv
-#   benchmark_sat_runs.csv
+# Encodings: Pairwise, Sequential, Binary, Commander, Product
+# Solver: Glucose3 (PySAT)
+# Benchmark: N = 2, 3, 4, 8, 20, 50, 100; 5 runs; timeout 30s
+# Kết quả benchmark được tổng hợp bằng median.
 # ============================================================
-
 
 import csv
 import math
@@ -35,7 +19,7 @@ from pysat.card import CardEnc, EncType
 
 
 # ============================================================
-# CẤU HÌNH BENCHMARK
+# Cấu hình benchmark
 # ============================================================
 
 N_VALUES = [
@@ -62,15 +46,9 @@ TIMEOUT_SECONDS = 30
 
 
 # ============================================================
-# BIẾN x[row, col]
-#
-# Mỗi ô trên bàn cờ tương ứng với một biến Boolean.
-#
-# x[row, col] = True
-#   <=> có quân hậu tại vị trí (row, col)
-#
-# ID biến:
-#   1 ... N^2
+# Biến SAT
+# x[row, col] = True nếu có hậu tại ô (row, col).
+# Các biến gốc được đánh số từ 1 đến N^2.
 # ============================================================
 
 def var_id(row, col, n):
@@ -83,16 +61,8 @@ def var_id(row, col, n):
 
 
 # ============================================================
-# QUẢN LÝ BIẾN PHỤ
-#
-# Các encoding như Sequential, Binary, Commander, Product
-# cần auxiliary variables.
-#
-# Biến gốc:
-#       1 ... N^2
-#
-# Biến phụ:
-#       N^2 + 1 ...
+# Quản lý biến phụ
+# Các encoding có thể sinh thêm auxiliary variables từ N^2 + 1.
 # ============================================================
 
 class AuxVarManager:
@@ -127,19 +97,8 @@ class AuxVarManager:
 
 
 # ============================================================
-# 1. PAIRWISE ENCODING
-#
-# AMO(x1, x2, ..., xn)
-#
-# Với mọi cặp (xi, xj):
-#
-#       ¬xi OR ¬xj
-#
-# Nếu có n biến:
-#
-#       C(n, 2)
-#
-# clauses.
+# 1. Pairwise encoding
+# AMO bằng cách cấm từng cặp biến cùng nhận True.
 # ============================================================
 
 def add_amo_pairwise(
@@ -169,14 +128,8 @@ def add_amo_pairwise(
 
 
 # ============================================================
-# 2. SEQUENTIAL COUNTER ENCODING
-#
-# Dùng encoding có sẵn của PySAT.
-#
-# bound = 1
-# => At Most One
-#
-# Sequential Counter sử dụng auxiliary variables.
+# 2. Sequential Counter encoding
+# Dùng CardEnc.atmost của PySAT với bound = 1.
 # ============================================================
 
 def add_amo_sequential(
@@ -199,34 +152,14 @@ def add_amo_sequential(
         encoding.clauses
     )
 
-    # Đồng bộ ID biến phụ mà PySAT vừa sinh
     var_manager.sync(
         encoding.nv
     )
 
 
 # ============================================================
-# 3. BINARY ENCODING
-#
-# Ý tưởng:
-#
-# Với m biến:
-#
-#       x1, x2, ..., xm
-#
-# tạo:
-#
-#       ceil(log2(m))
-#
-# auxiliary variables làm các bit nhị phân.
-#
-# Mỗi xi được gán một mã binary duy nhất.
-#
-# Nếu xi = True
-# => các bit phụ phải nhận đúng mã của xi.
-#
-# Hai xi khác nhau có mã khác nhau
-# => không thể cùng True.
+# 3. Binary encoding
+# Mỗi literal được gán một mã nhị phân riêng bằng các bit phụ.
 # ============================================================
 
 def add_amo_binary(
@@ -262,9 +195,6 @@ def add_amo_binary(
 
             if bit_value == 1:
 
-                # x -> bit
-                #
-                # ¬x OR bit
                 cnf.append(
                     [
                         -x,
@@ -274,9 +204,6 @@ def add_amo_binary(
 
             else:
 
-                # x -> ¬bit
-                #
-                # ¬x OR ¬bit
                 cnf.append(
                     [
                         -x,
@@ -286,25 +213,8 @@ def add_amo_binary(
 
 
 # ============================================================
-# 4. COMMANDER ENCODING
-#
-# Chia các biến thành các nhóm nhỏ.
-#
-# Ví dụ:
-#
-#   x1 x2 x3  -> commander c1
-#   x4 x5 x6  -> commander c2
-#
-# Trong mỗi nhóm:
-#   dùng Pairwise AMO
-#
-# Nếu xi True:
-#   commander của nhóm phải True
-#
-# Sau đó:
-#   các commander cũng phải AMO.
-#
-# group_size = 3
+# 4. Commander encoding
+# Chia literals thành các nhóm nhỏ và dùng biến commander cho mỗi nhóm.
 # ============================================================
 
 def add_amo_commander(
@@ -319,7 +229,6 @@ def add_amo_commander(
     if m <= 1:
         return
 
-    # Nhóm nhỏ thì Pairwise trực tiếp
     if m <= group_size:
 
         add_amo_pairwise(
@@ -343,8 +252,6 @@ def add_amo_commander(
             start + group_size
         ]
 
-        # Nếu nhóm chỉ còn 1 biến
-        # thì dùng luôn biến đó
         if len(group) == 1:
 
             commanders.append(
@@ -353,14 +260,12 @@ def add_amo_commander(
 
             continue
 
-        # AMO bên trong nhóm
         add_amo_pairwise(
             cnf,
             group,
             var_manager
         )
 
-        # Tạo commander
         commander = (
             var_manager.new_var()
         )
@@ -369,7 +274,6 @@ def add_amo_commander(
             commander
         )
 
-        # xi -> commander
         for x in group:
 
             cnf.append(
@@ -379,7 +283,6 @@ def add_amo_commander(
                 ]
             )
 
-    # Các commander cũng phải AMO
     add_amo_commander(
         cnf,
         commanders,
@@ -389,31 +292,8 @@ def add_amo_commander(
 
 
 # ============================================================
-# 5. PRODUCT ENCODING
-#
-# 2-Product Encoding.
-#
-# Ánh xạ m biến vào một ma trận gần vuông.
-#
-# Ví dụ:
-#
-#           col1 col2 col3
-#
-# row1       x1   x2   x3
-# row2       x4   x5   x6
-# row3       x7   x8   x9
-#
-# Nếu xij True:
-#
-#       row_i True
-#       col_j True
-#
-# Đồng thời:
-#
-#       AMO(row variables)
-#       AMO(column variables)
-#
-# => tối đa một x có thể True.
+# 5. Product encoding
+# Ánh xạ literals vào ma trận gần vuông và áp dụng AMO trên hàng/cột phụ.
 # ============================================================
 
 def add_amo_product(
@@ -427,8 +307,6 @@ def add_amo_product(
     if m <= 1:
         return
 
-    # Trường hợp rất nhỏ
-    # Pairwise đơn giản hơn
     if m <= 3:
 
         add_amo_pairwise(
@@ -439,7 +317,6 @@ def add_amo_product(
 
         return
 
-    # Kích thước ma trận gần vuông
     p = math.ceil(
         math.sqrt(m)
     )
@@ -474,7 +351,6 @@ def add_amo_product(
             index % q
         )
 
-        # x -> row
         cnf.append(
             [
                 -x,
@@ -482,7 +358,6 @@ def add_amo_product(
             ]
         )
 
-        # x -> column
         cnf.append(
             [
                 -x,
@@ -490,14 +365,12 @@ def add_amo_product(
             ]
         )
 
-    # AMO trên row variables
     add_amo_pairwise(
         cnf,
         row_vars,
         var_manager
     )
 
-    # AMO trên column variables
     add_amo_pairwise(
         cnf,
         col_vars,
@@ -506,10 +379,7 @@ def add_amo_product(
 
 
 # ============================================================
-# HÀM CHỌN ENCODING
-#
-# Mọi AMO constraint của N-Queens
-# đều đi qua hàm này.
+# Chọn AMO encoding
 # ============================================================
 
 def add_amo(
@@ -568,7 +438,9 @@ def add_amo(
 
 
 # ============================================================
-# TẠO CNF CHO N-QUEENS
+# Tạo CNF cho N-Queens
+# Hàng và cột: Exactly One = At Least One + At Most One.
+# Hai đường chéo: At Most One.
 # ============================================================
 
 def build_nqueens_cnf(
@@ -578,13 +450,6 @@ def build_nqueens_cnf(
 
     cnf = CNF()
 
-    # Biến gốc:
-    #
-    #   1 ... n^2
-    #
-    # Biến phụ bắt đầu:
-    #
-    #   n^2 + 1
     var_manager = AuxVarManager(
         first_aux_var=(
             n * n + 1
@@ -592,19 +457,7 @@ def build_nqueens_cnf(
     )
 
 
-    # ========================================================
-    # RÀNG BUỘC 1:
-    # MỖI HÀNG CÓ CHÍNH XÁC 1 HẬU
-    #
-    # Exactly One
-    #
-    # =
-    #
-    # At Least One
-    # +
-    # At Most One
-    # ========================================================
-
+    # Ràng buộc hàng
     for row in range(n):
 
         row_vars = []
@@ -633,11 +486,7 @@ def build_nqueens_cnf(
         )
 
 
-    # ========================================================
-    # RÀNG BUỘC 2:
-    # MỖI CỘT CÓ CHÍNH XÁC 1 HẬU
-    # ========================================================
-
+    # Ràng buộc cột
     for col in range(n):
 
         col_vars = []
@@ -666,15 +515,7 @@ def build_nqueens_cnf(
         )
 
 
-    # ========================================================
-    # RÀNG BUỘC 3:
-    # KHÔNG CÓ 2 HẬU TRÊN CÙNG ĐƯỜNG CHÉO "\"
-    #
-    # Các ô cùng đường chéo có:
-    #
-    #       row - col = constant
-    # ========================================================
-
+    # Đường chéo "\"
     diagonal_backslash = {}
 
     for row in range(n):
@@ -709,15 +550,7 @@ def build_nqueens_cnf(
             )
 
 
-    # ========================================================
-    # RÀNG BUỘC 4:
-    # KHÔNG CÓ 2 HẬU TRÊN CÙNG ĐƯỜNG CHÉO "/"
-    #
-    # Các ô cùng đường chéo có:
-    #
-    #       row + col = constant
-    # ========================================================
-
+    # Đường chéo "/"
     diagonal_slash = {}
 
     for row in range(n):
@@ -756,15 +589,8 @@ def build_nqueens_cnf(
 
 
 # ============================================================
-# WORKER
-#
-# Chạy trong process riêng.
-#
-# Mục đích:
-# nếu SAT solver chạy quá TIMEOUT_SECONDS,
-# process cha có thể terminate process này.
-#
-# Như vậy đây là HARD TIMEOUT.
+# SAT worker
+# Tạo CNF, nạp vào Glucose3, giải và đo các thành phần thời gian.
 # ============================================================
 
 def sat_worker(
@@ -775,10 +601,7 @@ def sat_worker(
 
     try:
 
-        # ====================================================
-        # 1. ENCODING TIME
-        # ====================================================
-
+        # Encoding time
         encode_start = (
             time.perf_counter()
         )
@@ -798,10 +621,7 @@ def sat_worker(
         )
 
 
-        # ====================================================
-        # SỐ BIẾN + SỐ CLAUSE
-        # ====================================================
-
+        # Kích thước CNF
         variables = cnf.nv
 
         clauses = len(
@@ -809,10 +629,7 @@ def sat_worker(
         )
 
 
-        # ====================================================
-        # 2. LOAD CNF VÀO GLUCOSE3
-        # ====================================================
-
+        # Load time
         load_start = (
             time.perf_counter()
         )
@@ -831,10 +648,7 @@ def sat_worker(
         )
 
 
-        # ====================================================
-        # 3. SOLVE TIME
-        # ====================================================
-
+        # Solve time
         solve_start = (
             time.perf_counter()
         )
@@ -851,10 +665,6 @@ def sat_worker(
         )
 
 
-        # ====================================================
-        # STATUS
-        # ====================================================
-
         if sat:
 
             status = "SAT"
@@ -866,15 +676,6 @@ def sat_worker(
 
         solver.delete()
 
-
-        # ====================================================
-        # TOTAL TIME
-        #
-        # Total =
-        #   Encode
-        # + Load
-        # + Solve
-        # ====================================================
 
         total_time = (
             encode_time
@@ -951,7 +752,8 @@ def sat_worker(
 
 
 # ============================================================
-# CHẠY 1 LẦN VỚI HARD TIMEOUT
+# Chạy một lần với hard timeout
+# Solver chạy trong process riêng để có thể dừng khi vượt giới hạn.
 # ============================================================
 
 def run_once_with_timeout(
@@ -960,7 +762,6 @@ def run_once_with_timeout(
     timeout_seconds
 ):
 
-    # Windows nên dùng spawn
     ctx = mp.get_context(
         "spawn"
     )
@@ -988,10 +789,6 @@ def run_once_with_timeout(
         timeout_seconds
     )
 
-
-    # ========================================================
-    # TIMEOUT
-    # ========================================================
 
     if process.is_alive():
 
@@ -1034,10 +831,6 @@ def run_once_with_timeout(
         }
 
 
-    # ========================================================
-    # PROCESS KẾT THÚC BÌNH THƯỜNG
-    # ========================================================
-
     if not result_queue.empty():
 
         return (
@@ -1045,7 +838,6 @@ def run_once_with_timeout(
         )
 
 
-    # Nếu process chết nhưng không gửi kết quả
     return {
         "N":
             n,
@@ -1077,7 +869,7 @@ def run_once_with_timeout(
 
 
 # ============================================================
-# HÀM MEDIAN AN TOÀN
+# Tính median, bỏ qua giá trị None
 # ============================================================
 
 def safe_median(values):
@@ -1098,7 +890,8 @@ def safe_median(values):
 
 
 # ============================================================
-# BENCHMARK TOÀN BỘ
+# Benchmark
+# Chạy từng encoding với từng N, mỗi trường hợp RUNS lần và lấy median.
 # ============================================================
 
 def benchmark_nqueens():
@@ -1148,10 +941,6 @@ def benchmark_nqueens():
     print()
 
 
-    # ========================================================
-    # CHẠY TỪNG ENCODING
-    # ========================================================
-
     for encoding_name in ENCODINGS:
 
         print()
@@ -1180,10 +969,6 @@ def benchmark_nqueens():
                 f"N = {n}"
             )
 
-
-            # =================================================
-            # 5 RUNS
-            # =================================================
 
             for run in range(
                 1,
@@ -1248,10 +1033,6 @@ def benchmark_nqueens():
                     )
 
 
-            # =================================================
-            # TÍNH MEDIAN
-            # =================================================
-
             successful_runs = [
                 r
                 for r in run_results
@@ -1263,10 +1044,8 @@ def benchmark_nqueens():
             ]
 
 
-            # Nếu không có lần nào solve thành công
             if len(successful_runs) == 0:
 
-                # Nếu có ít nhất một timeout
                 if any(
                     r["Status"]
                     == "TIMEOUT"
@@ -1277,7 +1056,6 @@ def benchmark_nqueens():
                         "TIMEOUT"
                     )
 
-                    # Dùng median elapsed timeout
                     total_time = (
                         safe_median(
                             [
@@ -1341,8 +1119,6 @@ def benchmark_nqueens():
                     in successful_runs
                 ]
 
-                # Các run bình thường phải cùng kết quả.
-                # Lấy status của run đầu tiên.
                 final_status = (
                     status_values[0]
                 )
@@ -1438,7 +1214,7 @@ def benchmark_nqueens():
 
 
     # ========================================================
-    # LƯU RAW RESULTS
+    # Lưu kết quả từng lần chạy
     # ========================================================
 
     raw_file = (
@@ -1479,11 +1255,11 @@ def benchmark_nqueens():
 
 
     # ========================================================
-    # LƯU MEDIAN RESULTS
+    # Lưu kết quả median
     # ========================================================
 
     median_file = (
-        "benchmark_results_median.csv"
+        "benchmark_sat_median.csv"
     )
 
     median_fields = [
@@ -1518,7 +1294,7 @@ def benchmark_nqueens():
 
 
     # ========================================================
-    # IN BẢNG KẾT QUẢ MEDIAN
+    # In bảng kết quả
     # ========================================================
 
     print()
@@ -1623,7 +1399,7 @@ def benchmark_nqueens():
 
 
 # ============================================================
-# MAIN
+# Main
 # ============================================================
 
 if __name__ == "__main__":
