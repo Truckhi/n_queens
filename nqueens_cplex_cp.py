@@ -1,18 +1,9 @@
 # ============================================================
 # N-QUEENS USING CPLEX CP OPTIMIZER
-#
-# Benchmark:
-#   N = 2, 3, 4, 8, 20, 50, 100
-#   5 runs / N
-#   Time limit = 30 seconds
-#   Workers = 1
-#   Median of 5 runs
-#
-# Output:
-#   benchmark_cplex_cp_median.csv
-#   benchmark_cplex_cp_runs.csv
+# Benchmark: N = 2, 3, 4, 8, 20, 50, 100
+# 5 runs / N, time limit 30s, 1 worker
+# Kết quả benchmark được tổng hợp bằng median.
 # ============================================================
-
 
 from docplex.cp.model import CpoModel
 
@@ -23,7 +14,7 @@ from statistics import median
 
 
 # ============================================================
-# CONFIG
+# Cấu hình benchmark
 # ============================================================
 
 TEST_VALUES = [
@@ -44,20 +35,14 @@ WORKERS = 1
 
 
 # ============================================================
-# 1. TẠO MODEL N-QUEENS BẰNG CPLEX CP OPTIMIZER
+# Tạo mô hình N-Queens bằng CPLEX CP
+# queens[row] biểu diễn cột đặt hậu ở hàng row.
 # ============================================================
 
 def build_nqueens_cplex_cp(n):
 
     model = CpoModel()
 
-
-    # ========================================================
-    # queens[row] = cột đặt quân hậu ở hàng row
-    #
-    # Mỗi hàng có đúng một biến nguyên queens[row]
-    # nhận giá trị từ 0 đến n - 1.
-    # ========================================================
 
     queens = model.integer_var_list(
         n,
@@ -67,23 +52,13 @@ def build_nqueens_cplex_cp(n):
     )
 
 
-    # ========================================================
-    # RÀNG BUỘC CỘT
-    #
-    # Không có 2 hậu cùng cột
-    # ========================================================
-
+    # Các hậu phải nằm ở các cột khác nhau
     model.add(
         model.all_diff(queens)
     )
 
 
-    # ========================================================
-    # RÀNG BUỘC ĐƯỜNG CHÉO "\"
-    #
-    # queens[row] - row phải khác nhau
-    # ========================================================
-
+    # Đường chéo "\": queens[row] - row phải khác nhau
     diagonal_1 = [
 
         queens[row] - row
@@ -96,12 +71,7 @@ def build_nqueens_cplex_cp(n):
     )
 
 
-    # ========================================================
-    # RÀNG BUỘC ĐƯỜNG CHÉO "/"
-    #
-    # queens[row] + row phải khác nhau
-    # ========================================================
-
+    # Đường chéo "/": queens[row] + row phải khác nhau
     diagonal_2 = [
 
         queens[row] + row
@@ -118,10 +88,8 @@ def build_nqueens_cplex_cp(n):
 
 
 # ============================================================
-# 2. GIẢI MỘT INSTANCE
-#
-# Chỉ dùng khi muốn kiểm tra nghiệm.
-# Không dùng làm benchmark chính.
+# Giải một bài toán N-Queens
+# Hàm dùng để kiểm tra nghiệm trực tiếp.
 # ============================================================
 
 def solve_nqueens_cplex_cp(
@@ -155,10 +123,7 @@ def solve_nqueens_cplex_cp(
     )
 
 
-    # ========================================================
-    # STATUS
-    # ========================================================
-
+    # Trạng thái kết quả
     if result.is_solution():
 
         print("Ket qua: SAT")
@@ -201,7 +166,8 @@ def solve_nqueens_cplex_cp(
 
 
 # ============================================================
-# 3. BENCHMARK CPLEX CP MỘT LẦN
+# Benchmark CPLEX CP một lần
+# Đo thời gian tạo mô hình và thời gian giải.
 # ============================================================
 
 def benchmark_cplex_cp_once(
@@ -209,10 +175,7 @@ def benchmark_cplex_cp_once(
     timeout_seconds=TIMEOUT_SECONDS
 ):
 
-    # ========================================================
-    # MODEL TIME
-    # ========================================================
-
+    # Model time
     model_start = (
         time.perf_counter()
     )
@@ -234,10 +197,7 @@ def benchmark_cplex_cp_once(
     )
 
 
-    # ========================================================
-    # SOLVE
-    # ========================================================
-
+    # Solve time
     solve_start = (
         time.perf_counter()
     )
@@ -270,10 +230,7 @@ def benchmark_cplex_cp_once(
     )
 
 
-    # ========================================================
-    # STATUS
-    # ========================================================
-
+    # Xác định trạng thái
     if result.is_solution():
 
         result_status = "SAT"
@@ -319,7 +276,7 @@ def benchmark_cplex_cp_once(
 
 
 # ============================================================
-# 4. BENCHMARK 5 LẦN + MEDIAN
+# Chạy mỗi N nhiều lần và lấy median
 # ============================================================
 
 def benchmark_cplex_cp_repeated(
@@ -364,10 +321,7 @@ def benchmark_cplex_cp_repeated(
         )
 
 
-    # ========================================================
-    # CÁC LẦN HOÀN THÀNH
-    # ========================================================
-
+    # Các lần chạy hoàn thành
     completed_runs = [
 
         result
@@ -382,10 +336,7 @@ def benchmark_cplex_cp_repeated(
     ]
 
 
-    # ========================================================
-    # TẤT CẢ TIMEOUT
-    # ========================================================
-
+    # Trường hợp không có lần chạy nào hoàn thành
     if len(
         completed_runs
     ) == 0:
@@ -442,10 +393,7 @@ def benchmark_cplex_cp_repeated(
         )
 
 
-    # ========================================================
-    # STATUS CUỐI
-    # ========================================================
-
+    # Trạng thái tổng hợp
     base_status = (
         completed_runs[0][
             "Status"
@@ -475,12 +423,7 @@ def benchmark_cplex_cp_repeated(
         )
 
 
-    # ========================================================
-    # MEDIAN
-    #
-    # Chỉ lấy những run SAT / UNSAT hoàn thành.
-    # ========================================================
-
+    # Median của các lần chạy hoàn thành
     summary = {
 
         "Solver":
@@ -537,7 +480,7 @@ def benchmark_cplex_cp_repeated(
 
 
 # ============================================================
-# 5. FORMAT TIME
+# Định dạng thời gian
 # ============================================================
 
 def format_time(value):
@@ -553,7 +496,7 @@ def format_time(value):
 
 
 # ============================================================
-# 6. IN BẢNG KẾT QUẢ
+# In bảng kết quả median
 # ============================================================
 
 def print_benchmark_results(
@@ -562,10 +505,12 @@ def print_benchmark_results(
 
     print()
 
+
     print(
         "CPLEX CP BENCHMARK "
         "- MEDIAN OF 5 RUNS"
     )
+
 
     print(
         "=" * 80
@@ -613,7 +558,7 @@ def print_benchmark_results(
 
 
 # ============================================================
-# 7. LƯU MEDIAN CSV
+# Lưu kết quả median
 # ============================================================
 
 def save_median_results(
@@ -677,7 +622,7 @@ def save_median_results(
 
 
 # ============================================================
-# 8. LƯU RAW RUNS
+# Lưu toàn bộ các lần chạy
 # ============================================================
 
 def save_raw_results(
@@ -743,33 +688,39 @@ def save_raw_results(
 
 
 # ============================================================
-# 9. MAIN
+# Main
 # ============================================================
 
 if __name__ == "__main__":
 
     print()
 
+
     print(
         "=" * 80
     )
+
 
     print(
         "N-QUEENS CPLEX CP BENCHMARK"
     )
 
+
     print(
         f"Runs per N: {REPEATS}"
     )
+
 
     print(
         f"Time limit: "
         f"{TIMEOUT_SECONDS}s"
     )
 
+
     print(
         f"Workers: {WORKERS}"
     )
+
 
     print(
         "=" * 80
@@ -781,10 +732,7 @@ if __name__ == "__main__":
     raw_results = []
 
 
-    # ========================================================
-    # CHẠY BENCHMARK
-    # ========================================================
-
+    # Chạy benchmark
     for n in TEST_VALUES:
 
         summary, runs = (
@@ -810,19 +758,13 @@ if __name__ == "__main__":
         )
 
 
-    # ========================================================
-    # IN BẢNG
-    # ========================================================
-
+    # In kết quả
     print_benchmark_results(
         median_results
     )
 
 
-    # ========================================================
-    # LƯU CSV
-    # ========================================================
-
+    # Lưu CSV
     save_median_results(
         median_results
     )
