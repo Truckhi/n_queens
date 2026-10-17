@@ -1,18 +1,9 @@
 # ============================================================
 # N-QUEENS USING CPLEX MIP
-#
-# Benchmark:
-#   N = 2, 3, 4, 8, 20, 50, 100
-#   5 runs / N
-#   Time limit = 30 seconds
-#   Threads = 1
-#   Median of 5 runs
-#
-# Output:
-#   benchmark_cplex_mip_median.csv
-#   benchmark_cplex_mip_runs.csv
+# Benchmark: N = 2, 3, 4, 8, 20, 50, 100
+# 5 runs / N, time limit 30s, 1 thread
+# Kết quả benchmark được tổng hợp bằng median.
 # ============================================================
-
 
 from docplex.mp.model import Model
 
@@ -23,7 +14,7 @@ from statistics import median
 
 
 # ============================================================
-# CONFIG
+# Cấu hình benchmark
 # ============================================================
 
 TEST_VALUES = [
@@ -44,7 +35,7 @@ THREADS = 1
 
 
 # ============================================================
-# 1. TẠO MODEL N-QUEENS BẰNG CPLEX MIP
+# Tạo mô hình N-Queens bằng CPLEX MIP
 # ============================================================
 
 def build_nqueens_cplex_mip(n):
@@ -54,16 +45,8 @@ def build_nqueens_cplex_mip(n):
     )
 
 
-    # ========================================================
-    # BIẾN
-    #
-    # x[row, col] = 1:
-    # có quân hậu tại ô (row, col)
-    #
-    # x[row, col] = 0:
-    # không có quân hậu
-    # ========================================================
-
+    # Biến nhị phân
+    # x[row, col] = 1 nếu đặt hậu tại ô (row, col).
     x = model.binary_var_matrix(
         range(n),
         range(n),
@@ -71,11 +54,7 @@ def build_nqueens_cplex_mip(n):
     )
 
 
-    # ========================================================
-    # RÀNG BUỘC 1:
-    # Mỗi hàng có chính xác 1 quân hậu
-    # ========================================================
-
+    # Mỗi hàng có chính xác một hậu
     for row in range(n):
 
         model.add_constraint(
@@ -89,11 +68,7 @@ def build_nqueens_cplex_mip(n):
         )
 
 
-    # ========================================================
-    # RÀNG BUỘC 2:
-    # Mỗi cột có chính xác 1 quân hậu
-    # ========================================================
-
+    # Mỗi cột có chính xác một hậu
     for col in range(n):
 
         model.add_constraint(
@@ -107,10 +82,7 @@ def build_nqueens_cplex_mip(n):
         )
 
 
-    # ========================================================
-    # TẠO CÁC NHÓM ĐƯỜNG CHÉO
-    # ========================================================
-
+    # Nhóm các ô theo hai hướng đường chéo
     diagonal_backslash = {}
 
     diagonal_slash = {}
@@ -120,7 +92,7 @@ def build_nqueens_cplex_mip(n):
 
         for col in range(n):
 
-            # "\" : row - col
+            # Đường chéo "\": row - col
             key1 = row - col
 
             if key1 not in diagonal_backslash:
@@ -131,7 +103,7 @@ def build_nqueens_cplex_mip(n):
             )
 
 
-            # "/" : row + col
+            # Đường chéo "/": row + col
             key2 = row + col
 
             if key2 not in diagonal_slash:
@@ -142,11 +114,7 @@ def build_nqueens_cplex_mip(n):
             )
 
 
-    # ========================================================
-    # RÀNG BUỘC 3:
-    # Mỗi đường chéo "\" có tối đa 1 hậu
-    # ========================================================
-
+    # Mỗi đường chéo "\" có tối đa một hậu
     for group in diagonal_backslash.values():
 
         if len(group) > 1:
@@ -156,11 +124,7 @@ def build_nqueens_cplex_mip(n):
             )
 
 
-    # ========================================================
-    # RÀNG BUỘC 4:
-    # Mỗi đường chéo "/" có tối đa 1 hậu
-    # ========================================================
-
+    # Mỗi đường chéo "/" có tối đa một hậu
     for group in diagonal_slash.values():
 
         if len(group) > 1:
@@ -174,10 +138,8 @@ def build_nqueens_cplex_mip(n):
 
 
 # ============================================================
-# 2. GIẢI MỘT INSTANCE
-#
-# Chỉ dùng để kiểm tra nghiệm.
-# Không dùng làm benchmark chính.
+# Giải một bài toán N-Queens
+# Hàm dùng để kiểm tra nghiệm trực tiếp.
 # ============================================================
 
 def solve_nqueens_cplex_mip(
@@ -190,19 +152,10 @@ def solve_nqueens_cplex_mip(
     )
 
 
-    # ========================================================
-    # Benchmark công bằng:
-    # chỉ dùng 1 thread
-    # ========================================================
-
     model.parameters.threads = (
         THREADS
     )
 
-
-    # ========================================================
-    # Giới hạn thời gian
-    # ========================================================
 
     model.parameters.timelimit = (
         timeout_seconds
@@ -225,10 +178,7 @@ def solve_nqueens_cplex_mip(
     )
 
 
-    # ========================================================
-    # KẾT QUẢ
-    # ========================================================
-
+    # Trạng thái kết quả
     if solution is not None:
 
         print(
@@ -304,7 +254,8 @@ def solve_nqueens_cplex_mip(
 
 
 # ============================================================
-# 3. BENCHMARK CPLEX MIP MỘT LẦN
+# Benchmark CPLEX MIP một lần
+# Đo thời gian tạo mô hình và thời gian giải.
 # ============================================================
 
 def benchmark_cplex_mip_once(
@@ -312,10 +263,7 @@ def benchmark_cplex_mip_once(
     timeout_seconds=TIMEOUT_SECONDS
 ):
 
-    # ========================================================
-    # MODEL TIME
-    # ========================================================
-
+    # Model time
     model_start = (
         time.perf_counter()
     )
@@ -337,10 +285,7 @@ def benchmark_cplex_mip_once(
     )
 
 
-    # ========================================================
-    # THỐNG KÊ MODEL
-    # ========================================================
-
+    # Thống kê mô hình
     number_variables = (
         model.number_of_variables
     )
@@ -351,10 +296,7 @@ def benchmark_cplex_mip_once(
     )
 
 
-    # ========================================================
-    # CẤU HÌNH SOLVER
-    # ========================================================
-
+    # Cấu hình solver
     model.parameters.threads = (
         THREADS
     )
@@ -365,10 +307,7 @@ def benchmark_cplex_mip_once(
     )
 
 
-    # ========================================================
-    # SOLVE
-    # ========================================================
-
+    # Solve time
     solve_start = (
         time.perf_counter()
     )
@@ -398,10 +337,7 @@ def benchmark_cplex_mip_once(
         )
 
 
-        # ====================================================
-        # STATUS
-        # ====================================================
-
+        # Xác định trạng thái
         if solution is not None:
 
             result_status = (
@@ -522,7 +458,7 @@ def benchmark_cplex_mip_once(
 
 
 # ============================================================
-# 4. BENCHMARK 5 LẦN + MEDIAN
+# Chạy mỗi N nhiều lần và lấy median
 # ============================================================
 
 def benchmark_cplex_mip_repeated(
@@ -568,7 +504,6 @@ def benchmark_cplex_mip_repeated(
         )
 
 
-        # Nếu có lỗi, in luôn
         if (
             result["Status"]
             == "ERROR"
@@ -580,10 +515,7 @@ def benchmark_cplex_mip_repeated(
             )
 
 
-    # ========================================================
-    # CHỈ LẤY CÁC RUN HOÀN THÀNH
-    # ========================================================
-
+    # Các lần chạy hoàn thành
     completed_runs = [
 
         result
@@ -598,10 +530,7 @@ def benchmark_cplex_mip_repeated(
     ]
 
 
-    # ========================================================
-    # TẤT CẢ TIMEOUT
-    # ========================================================
-
+    # Các lần timeout
     timeout_runs = [
 
         result
@@ -686,10 +615,7 @@ def benchmark_cplex_mip_repeated(
         )
 
 
-    # ========================================================
-    # TẤT CẢ ERROR
-    # ========================================================
-
+    # Các lần lỗi
     error_runs = [
 
         result
@@ -750,10 +676,7 @@ def benchmark_cplex_mip_repeated(
         )
 
 
-    # ========================================================
-    # KHÔNG CÓ RUN HOÀN THÀNH
-    # ========================================================
-
+    # Trường hợp không có lần chạy hoàn thành
     if (
         len(completed_runs)
         == 0
@@ -800,10 +723,7 @@ def benchmark_cplex_mip_repeated(
         )
 
 
-    # ========================================================
-    # STATUS
-    # ========================================================
-
+    # Trạng thái tổng hợp
     base_status = (
         completed_runs[0][
             "Status"
@@ -833,10 +753,7 @@ def benchmark_cplex_mip_repeated(
         )
 
 
-    # ========================================================
-    # MEDIAN
-    # ========================================================
-
+    # Median của các lần chạy hoàn thành
     summary = {
 
         "Solver":
@@ -906,7 +823,7 @@ def benchmark_cplex_mip_repeated(
 
 
 # ============================================================
-# 5. FORMAT
+# Định dạng thời gian
 # ============================================================
 
 def format_time(value):
@@ -922,7 +839,7 @@ def format_time(value):
 
 
 # ============================================================
-# 6. IN BẢNG
+# In bảng kết quả median
 # ============================================================
 
 def print_benchmark_results(
@@ -930,6 +847,7 @@ def print_benchmark_results(
 ):
 
     print()
+
 
     print(
         "CPLEX MIP BENCHMARK "
@@ -991,7 +909,7 @@ def print_benchmark_results(
 
 
 # ============================================================
-# 7. LƯU MEDIAN CSV
+# Lưu kết quả median
 # ============================================================
 
 def save_median_results(
@@ -1061,7 +979,7 @@ def save_median_results(
 
 
 # ============================================================
-# 8. LƯU RAW RUNS
+# Lưu toàn bộ các lần chạy
 # ============================================================
 
 def save_raw_results(
@@ -1133,33 +1051,39 @@ def save_raw_results(
 
 
 # ============================================================
-# 9. MAIN
+# Main
 # ============================================================
 
 if __name__ == "__main__":
 
     print()
 
+
     print(
         "=" * 90
     )
+
 
     print(
         "N-QUEENS CPLEX MIP BENCHMARK"
     )
 
+
     print(
         f"Runs per N: {REPEATS}"
     )
+
 
     print(
         f"Time limit: "
         f"{TIMEOUT_SECONDS}s"
     )
 
+
     print(
         f"Threads: {THREADS}"
     )
+
 
     print(
         "=" * 90
@@ -1171,10 +1095,7 @@ if __name__ == "__main__":
     raw_results = []
 
 
-    # ========================================================
-    # CHẠY BENCHMARK
-    # ========================================================
-
+    # Chạy benchmark
     for n in TEST_VALUES:
 
         summary, runs = (
@@ -1200,19 +1121,13 @@ if __name__ == "__main__":
         )
 
 
-    # ========================================================
-    # IN BẢNG
-    # ========================================================
-
+    # In kết quả
     print_benchmark_results(
         median_results
     )
 
 
-    # ========================================================
-    # LƯU CSV
-    # ========================================================
-
+    # Lưu CSV
     save_median_results(
         median_results
     )
